@@ -1,0 +1,6 @@
+Vellum uses dynamically linked Qt 6.10.3 (Core, GUI, Widgets), available under LGPL v3 and applicable exceptions. License texts are in licenses/. Qt source: https://github.com/qt/qtbase/tree/v6.10.3 . The Qt libraries are replaceable; this package does not impose additional restrictions on modifications for debugging those libraries.
+libsodium 1.0.22 uses the ISC license; its text is in licenses/libsodium.txt. Source: https://github.com/jedisct1/libsodium/tree/1.0.22-RELEASE .
+Microsoft runtime and DirectX compiler redistributables remain subject to their respective Microsoft license terms.
+
+EFF Long Wordlist by Electronic Frontier Foundation / Joseph Bonneau is distributed under CC BY 4.0. Words are unchanged; dice labels are omitted from the C++ representation. Source and license links: licenses/EFF-wordlist.txt. No endorsement is implied.
+

@@ -1,0 +1,6 @@
+EFF Long Wordlist by Electronic Frontier Foundation / Joseph Bonneau.
+Source: https://www.eff.org/files/2016/07/18/eff_large_wordlist.txt
+Reference: https://www.eff.org/dice
+License: CC BY 4.0 https://creativecommons.org/licenses/by/4.0/
+Policy: https://www.eff.org/copyright
+Words unchanged; dice labels removed for the embedded C++ array. No endorsement implied.

@@ -1,0 +1,25 @@
+# Public source allowlist. Local files are excluded unless listed below.
+/*
+!/.gitignore
+!/README.md
+!/CMakeLists.txt
+!/CMakePresets.json
+!/cmake/
+!/Start Vellum.cmd
+!/THIRD-PARTY-NOTICES.txt
+!/src/
+!/tests/
+!/resources/
+!/docs/
+!/licenses/
+
+# Never publish secrets, local vaults, build outputs, or editor metadata.
+**/.env*
+**/*.vault
+**/*.lock
+**/*.dpapi
+**/*recovery*.txt
+**/__pycache__/
+**/*.pyc
+**/.DS_Store
+
