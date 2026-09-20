@@ -1,22 +1,39 @@
-# Vellum
+<h1 align="center">Vellum</h1>
 
-A local notes and password manager for Windows, built with C++ and Qt.
+<p align="center">
+  A private workspace for notes and passwords.<br>
+  Built for Windows. Stored on your computer.
+</p>
 
-Vellum keeps your notes and login details in an encrypted file on your computer. A searchable library and a focused editor make room for the content. No account, server, or cloud connection is required.
+<p align="center">
+  <a href="#getting-started">Getting started</a> &nbsp;&middot;&nbsp;
+  <a href="docs/USAGE.md">User guide</a> &nbsp;&middot;&nbsp;
+  <a href="docs/BUILDING.md">Building</a> &nbsp;&middot;&nbsp;
+  <a href="docs/SECURITY.md">Security</a>
+</p>
 
-![Vellum workspace](docs/images/vellum.png)
+![Vellum's dark workspace showing fictional notes and login entries](docs/images/vellum.png)
 
-## Features
+Vellum brings notes and login details into one encrypted vault. Search your library, write a note, or copy a password without leaving the desktop app. Your master passphrase unlocks the file; no account or server is required.
 
-- **One vault for notes and passwords.** Create, edit, and search entries from a single workspace.
-- **Encrypted files and backups.** Entry contents, titles, and login metadata are encrypted with XChaCha20-Poly1305; Argon2id derives the key from your master passphrase.
-- **Local password generation.** Generate passwords or a seven-word master passphrase, with an optional recovery export.
-- **Session controls.** Manual and inactivity locking, masked password fields, and a clipboard timeout.
-- **Native desktop interface.** A dark, frameless workspace with keyboard shortcuts and no browser runtime.
+> [!IMPORTANT]
+> Vellum is in early development and has not received an independent security audit. Use test data while evaluating it.
 
-## Build
+## Inside Vellum
 
-Requires Windows x64, Visual Studio C++ tools, CMake 3.25+, Ninja, Qt 6.10.3, and libsodium 1.0.22. Follow the [dependency setup](docs/BUILDING.md#requirements), then run from an **x64 Native Tools Command Prompt**:
+- **Notes and logins together.** A searchable library with separate views for passwords and notes.
+- **Encrypted storage.** Vault contents and entry metadata are protected with XChaCha20-Poly1305 and an Argon2id-derived key.
+- **Local generation.** Create random passwords or a seven-word master passphrase on your computer.
+- **Backups and recovery.** Save encrypted backups, with an optional master-passphrase export for safekeeping.
+- **Desktop controls.** Manual and inactivity locking, masked passwords, clipboard timeout, and keyboard shortcuts in a dark, frameless interface.
+
+## Getting started
+
+### Build and run
+
+Vellum currently targets **Windows x64**. Before building, install Visual Studio C++ tools, CMake 3.25+, Ninja, Qt 6.10.3, and libsodium 1.0.22. Follow the [dependency setup](docs/BUILDING.md#requirements) for the required paths.
+
+From an **x64 Native Tools Command Prompt for Visual Studio**, run:
 
 ```bat
 set "QT_ROOT=C:\Qt\6.10.3\msvc2022_64"
@@ -26,22 +43,24 @@ ctest --preset windows-release
 cmake --install build/windows-release
 ```
 
-Run `desktop/Vellum.exe`. To produce a distributable ZIP:
+Open `desktop/Vellum.exe`, choose **Create new**, and follow the passphrase and recovery steps. See the [user guide](docs/USAGE.md) for working with entries and backups.
 
-```sh
-cpack --preset windows-release
-```
+To package a distributable ZIP, run `cpack --preset windows-release`. Full build, test, and packaging instructions are in [Building Vellum](docs/BUILDING.md).
 
-See [Building Vellum](docs/BUILDING.md) for dependency paths, packaging, and test details.
+### Everyday shortcuts
 
-## Documentation
+| Action | Shortcut |
+| --- | --- |
+| Search the vault | `Ctrl+K` |
+| Save an entry | `Ctrl+S` |
+| Lock the vault | `Ctrl+L` |
 
-- [User guide](docs/USAGE.md) - creating a vault, shortcuts, backups, and recovery.
-- [Security model](docs/SECURITY.md) - encryption, memory handling, and known limitations.
-- [Third-party notices](THIRD-PARTY-NOTICES.txt) - dependency licenses and wordlist attribution.
+## Keep your recovery copy separate
 
-## Project status
+An encrypted backup is a copy of the vault. A recovery export is **unencrypted text containing the master passphrase**. Store it separately from the vault and backups. There is no password-reset service.
 
-Vellum is in early development and has not received an independent security audit. Use test data while evaluating it. Device sync, browser autofill, and passkeys are not currently supported.
+Read the [security model](docs/SECURITY.md) for the encryption design, memory and clipboard limitations, and verification still needed. Device sync, browser autofill, and passkeys are not currently supported.
 
-**Keep your master passphrase safe.** There is no password-reset service. Recovery exports contain the passphrase as unencrypted text and should be stored separately from the vault.
+## Acknowledgements
+
+Built with C++20, Qt Widgets, and libsodium. Passphrase generation uses the EFF Long Wordlist. Dependency licenses and attribution are collected in [third-party notices](THIRD-PARTY-NOTICES.txt).
