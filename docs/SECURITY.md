@@ -34,4 +34,4 @@ Automated tests exercise authentication, tampering, recovery, input validation, 
 
 Pending checks include real Windows session/suspend transitions, clipboard/history behavior, idle timing, compositor dragging/resizing, high-DPI and accessibility behavior, disk-exhaustion/power-loss fault injection, code signing, and independent security review.
 
-The dependency archive used during development was matched to its GitHub release asset SHA256 over HTTPS. This was not detached-signature verification.
+The dependency archive used during development was matched to its GitHub release asset SHA256 over HTTPS. This was not detached-signature verification.

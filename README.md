@@ -119,4 +119,3 @@ This version does not include device sync, browser autofill, passkeys, or a pass
 C++20 · Qt Widgets · libsodium
 
 Master passphrase generation uses the [EFF Long Wordlist](https://www.eff.org/dice). See [third-party notices](THIRD-PARTY-NOTICES.txt) for attribution and dependency licenses.
-
