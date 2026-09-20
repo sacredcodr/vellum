@@ -19,9 +19,9 @@ int main(int argc, char* argv[])
     for (int i = 1; i < argc; ++i) if (QByteArray(argv[i]) == "--self-test") fixture = true;
     if (fixture) qputenv("QT_QPA_PLATFORM", "offscreen");
     QApplication app(argc, argv);
-    // Keep the original settings namespace so existing vault paths remain available.
+    // Keep settings under the product identity used by current releases.
     app.setApplicationDisplayName("Vellum");
-    app.setOrganizationName("PrivateVault"); app.setApplicationName("PrivateVault"); app.setStyle("Fusion");
+    app.setOrganizationName("Vellum"); app.setApplicationName("Vellum"); app.setStyle("Fusion");
     if (fixture)
     {
         for (const auto* font : {"segoeui.ttf", "segoeuib.ttf", "consola.ttf"}) QFontDatabase::addApplicationFont(qEnvironmentVariable("WINDIR", "C:/Windows") + "/Fonts/" + font);

@@ -1,5 +1,6 @@
 #include "PassphraseWords.h"
 #include "VaultStore.h"
+#include "PassphrasePolicy.h"
 #include <QCryptographicHash>
 #include <QDataStream>
 #include <QFile>
@@ -117,7 +118,8 @@ QByteArray VaultStore::encrypt(const QJsonArray& entries) const
 void VaultStore::create(const QString& path, QByteArray& passphrase)
 {
     WipeBytes wipe{passphrase};
-    if (QString::fromUtf8(passphrase).size() < 16 || passphrase.size() > 1024) fail("Use a master passphrase of at least 16 characters (up to 1,024 UTF-8 bytes).");
+    const auto policyError = PassphrasePolicy::error(QString::fromUtf8(passphrase));
+    if (!policyError.isEmpty()) throw std::runtime_error(policyError.toStdString());
     acquireFile(path);
     bool reserved = false;
     try
@@ -200,14 +202,20 @@ QString VaultStore::generatePassword(int length)
 
 QString VaultStore::generatePassphrase()
 {
-    QString result;
-    for (int index = 0; index < 7; ++index)
+    for (;;)
     {
-        if (index > 0)
+        QString result;
+        for (int index = 0; index < 7; ++index)
         {
-            result += ' ';
+            if (index > 0)
+            {
+                result += ' ';
+            }
+            result += QLatin1String(kPassphraseWords[randombytes_uniform(static_cast<uint32_t>(kPassphraseWords.size()))]);
         }
-        result += QLatin1String(kPassphraseWords[randombytes_uniform(static_cast<uint32_t>(kPassphraseWords.size()))]);
+        if (PassphrasePolicy::error(result).isEmpty())
+        {
+            return result;
+        }
     }
-    return result;
 }

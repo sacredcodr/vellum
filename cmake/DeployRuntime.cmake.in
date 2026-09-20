@@ -5,5 +5,31 @@ execute_process(
     COMMAND_ERROR_IS_FATAL ANY
 )
 file(INSTALL "@VELLUM_QT_PLUGINS@/platforms/qwindows.dll"
-    "@VELLUM_QT_PLUGINS@/platforms/qoffscreen.dll"
     DESTINATION "${CMAKE_INSTALL_PREFIX}/platforms")
+
+function(vellum_verify_deployed name relative_path expected_sha256)
+    set(path "${CMAKE_INSTALL_PREFIX}/${relative_path}")
+    if(NOT EXISTS "${path}")
+        message(FATAL_ERROR "${name} was not deployed: ${path}")
+    endif()
+    file(SHA256 "${path}" actual_sha256)
+    if(NOT actual_sha256 STREQUAL expected_sha256)
+        message(FATAL_ERROR "${name} changed during deployment: ${actual_sha256}")
+    endif()
+endfunction()
+
+vellum_verify_deployed("Qt 6 Core" "Qt6Core.dll" "b712b4754588e89f855dc0aa087d6304b2fd21b0e0639d1cdeb9cb969bd5fb72")
+vellum_verify_deployed("Qt 6 GUI" "Qt6Gui.dll" "03ba47a2025036a04f5548bce242788ac21edf551e78d5b42e1b87beb799904f")
+vellum_verify_deployed("Qt 6 Widgets" "Qt6Widgets.dll" "61ddd0316a731b8dbabaf2924cd0d47b756461e37329b4f535902cf450416127")
+vellum_verify_deployed("Qt Windows platform plugin" "platforms/qwindows.dll" "cafd5bfdef3d89d176ee26725c8d4759fd6cb007645b645a4cbf6386364a3f36")
+vellum_verify_deployed("libsodium runtime" "libsodium.dll" "f656aeb789bfc3a2ac587fae1d7cfe278bbe8ce73f28da73b4d08282ea8f9fe3")
+vellum_verify_deployed("Direct3D compiler" "d3dcompiler_47.dll" "f5c95e919b4ffa1ac71049cd45b9f986d2965e6888395ca2806337985334fa56")
+vellum_verify_deployed("DirectX compiler" "dxcompiler.dll" "997d380d24b2e0e86b1c37e0fccab82ff1dbd88d32bacd76ec0afee50dea41aa")
+vellum_verify_deployed("DirectX intermediate-language runtime" "dxil.dll" "92d28fc4d302876891f1aa2690bbcaf80a4c5edd7cb8bfefb191a5b52abf966d")
+vellum_verify_deployed("ICU runtime" "icuuc.dll" "59d134ddc15ae0594f0a328979f8201662fc82634ddb7c537b156e7cf871f5eb")
+vellum_verify_deployed("Visual C++ redistributable" "vc_redist.x64.exe" "843068991daaa1f73ad9f6239bce4d0f6a07a51f18c37ea2a867e9beca71295c")
+
+if("@VELLUM_OFFICIAL_RELEASE@")
+    execute_process(COMMAND "@VELLUM_SIGNTOOL@" verify /pa /all "${CMAKE_INSTALL_PREFIX}/Vellum.exe"
+        COMMAND_ERROR_IS_FATAL ANY)
+endif()

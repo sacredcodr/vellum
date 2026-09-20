@@ -1,10 +1,15 @@
 ﻿#include "VaultStore.h"
 #include "RecoveryCopy.h"
+#include "PassphrasePolicy.h"
 #include "PassphraseWords.h"
 #include <QtTest>
+#include <QDir>
 #include <QFile>
 #include <QJsonObject>
 #include <QTemporaryDir>
+#include <windows.h>
+#include <aclapi.h>
+#include <vector>
 
 class VaultTests : public QObject
 {
@@ -14,6 +19,7 @@ private slots:
     void rejectsTamperingAndWrongKeys();
     void preservesOriginalAndRejectsConcurrentWriters();
     void randomPasswords();
+    void passphrasePolicy();
     void masterPassphraseAndRecovery();
 };
 QJsonArray sample()
@@ -22,7 +28,7 @@ QJsonArray sample()
         {"username", "PRIVATE-USERNAME-marker"}, {"url", "https://example.invalid"}, {"password", "PRIVATE-PASSWORD-marker"},
         {"notes", "PRIVATE-NOTE-marker"}, {"updated", "2026-09-20"}}};
 }
-QByteArray passphrase() { return "test-only long master passphrase"; }
+QByteArray passphrase() { return "Quartz!7River-Cobalt9Maple"; }
 QByteArray read(const QString& path) { QFile f(path); if (!f.open(QIODevice::ReadOnly)) return {}; return f.readAll(); }
 void write(const QString& path, const QByteArray& data) { QFile f(path); QVERIFY(f.open(QIODevice::WriteOnly)); QCOMPARE(f.write(data), data.size()); }
 void VaultTests::encryptedRoundTripAndBackup()
@@ -86,6 +92,20 @@ void VaultTests::randomPasswords()
     QVERIFY_EXCEPTION_THROWN(VaultStore::generatePassword(0), std::runtime_error);
     QVERIFY_EXCEPTION_THROWN(VaultStore::generatePassword(129), std::runtime_error);
 }
+void VaultTests::passphrasePolicy()
+{
+    QVERIFY(!PassphrasePolicy::error("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").isEmpty());
+    QVERIFY(!PassphrasePolicy::error("PasswordPasswordPassword123!").isEmpty());
+    QVERIFY(!PassphrasePolicy::error("abcdefghijklmnopqrstuvwxyz").isEmpty());
+    QVERIFY(PassphrasePolicy::error("Quartz!7River-Cobalt9Maple").isEmpty());
+    QVERIFY(PassphrasePolicy::error("harbor violet lantern meadow copper summit").isEmpty());
+
+    QTemporaryDir directory;
+    auto weak = QByteArray("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    VaultStore store;
+    QVERIFY_EXCEPTION_THROWN(store.create(directory.filePath("weak.vault"), weak), std::runtime_error);
+    QVERIFY(!QFile::exists(directory.filePath("weak.vault")));
+}
 void VaultTests::masterPassphraseAndRecovery()
 {
     VaultStore store;
@@ -105,6 +125,7 @@ void VaultTests::masterPassphraseAndRecovery()
         {
             QVERIFY(dictionary.contains(word));
         }
+        QVERIFY(PassphrasePolicy::error(phrase).isEmpty());
         phrases.insert(phrase);
     }
     QCOMPARE(phrases.size(), 100);
@@ -115,6 +136,29 @@ void VaultTests::masterPassphraseAndRecovery()
     const auto contents = read(recovery);
     QVERIFY(contents.contains("NOT ENCRYPTED"));
     QVERIFY(contents.endsWith(phrase.toUtf8() + "\n"));
+
+    PSECURITY_DESCRIPTOR descriptor = nullptr;
+    PACL acl = nullptr;
+    auto nativeRecovery = QDir::toNativeSeparators(recovery).toStdWString();
+    QCOMPARE(GetNamedSecurityInfoW(nativeRecovery.data(), SE_FILE_OBJECT, DACL_SECURITY_INFORMATION,
+        nullptr, nullptr, &acl, nullptr, &descriptor), DWORD(ERROR_SUCCESS));
+    ACL_SIZE_INFORMATION aclInfo{};
+    QVERIFY(GetAclInformation(acl, &aclInfo, sizeof(aclInfo), AclSizeInformation));
+    QCOMPARE(aclInfo.AceCount, DWORD(1));
+    void* rawAce = nullptr;
+    QVERIFY(GetAce(acl, 0, &rawAce));
+    auto* ace = static_cast<ACCESS_ALLOWED_ACE*>(rawAce);
+    QCOMPARE(ace->Header.AceType, BYTE(ACCESS_ALLOWED_ACE_TYPE));
+    HANDLE rawToken = nullptr;
+    QVERIFY(OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &rawToken));
+    DWORD tokenSize = 0;
+    GetTokenInformation(rawToken, TokenUser, nullptr, 0, &tokenSize);
+    std::vector<std::byte> tokenBuffer(tokenSize);
+    QVERIFY(GetTokenInformation(rawToken, TokenUser, tokenBuffer.data(), tokenSize, &tokenSize));
+    auto* tokenUser = static_cast<TOKEN_USER*>(static_cast<void*>(tokenBuffer.data()));
+    QVERIFY(EqualSid(&ace->SidStart, tokenUser->User.Sid));
+    CloseHandle(rawToken);
+    if (descriptor) LocalFree(descriptor);
     QVERIFY_EXCEPTION_THROWN(RecoveryCopy::save(recovery, "different passphrase for testing"), std::runtime_error);
     QCOMPARE(read(recovery), contents);
     QVERIFY_EXCEPTION_THROWN(RecoveryCopy::save(directory.filePath("invalid.txt"), "short"), std::runtime_error);

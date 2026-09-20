@@ -1,4 +1,5 @@
 #include "RecoveryCopy.h"
+#include "PassphrasePolicy.h"
 #include "VaultWindow.h"
 #include <QApplication>
 #include <QCheckBox>
@@ -212,8 +213,9 @@ void VaultWindow::buildUi()
     auto checkPhrase = [this]
     {
         m_recoveryAcknowledged->setChecked(false);
+        const auto policyError = PassphrasePolicy::error(m_master->text());
         if (m_master->text().isEmpty()) m_phraseCheck->clear();
-        else if (m_master->text().size() < 16) m_phraseCheck->setText("Use at least 16 characters.");
+        else if (!policyError.isEmpty()) m_phraseCheck->setText(policyError);
         else if (m_confirm->text().isEmpty()) m_phraseCheck->setText("Repeat your passphrase to confirm it.");
         else if (m_master->text() == m_confirm->text()) m_phraseCheck->setText("Passphrases match.");
         else m_phraseCheck->setText("Passphrases do not match yet.");
@@ -440,7 +442,7 @@ void VaultWindow::chooseVault(bool create)
     m_recoveryAcknowledged->setChecked(false);
     m_unlockTitle->setText(create ? "Create your vault." : "Welcome back.");
     findChild<QPushButton*>("unlockButton")->setText(create ? "Save encrypted vault" : "Unlock vault");
-    m_unlockError->setText(create ? "Choose a long, unique passphrase of at least 16 characters. Losing it means losing access." : ""); m_master->setFocus();
+    m_unlockError->setText(create ? "Use six unrelated words, 24 mixed characters, or the secure generator. Losing it means losing access." : ""); m_master->setFocus();
     showSetupStep(false);
 }
 void VaultWindow::showSetupStep(bool recovery)
@@ -491,9 +493,10 @@ void VaultWindow::exportRecoveryCopy()
     {
         return;
     }
-    if (m_master->text().size() < 16 || m_master->text() != m_confirm->text())
+    const auto policyError = PassphrasePolicy::error(m_master->text());
+    if (!policyError.isEmpty() || m_master->text() != m_confirm->text())
     {
-        m_unlockError->setText("Enter matching passphrases of at least 16 characters first.");
+        m_unlockError->setText(!policyError.isEmpty() ? policyError : "Enter matching passphrases first.");
         updateWindowPresentation();
         return;
     }
@@ -505,7 +508,7 @@ void VaultWindow::exportRecoveryCopy()
         return;
     }
     const auto destination = pickFile(this, "Save recovery copy (not encrypted)", "Vellum-recovery.txt", true, "Text file (*.txt)");
-    if (destination.isEmpty() || !m_create || m_master->text().size() < 16)
+    if (destination.isEmpty() || !m_create || !PassphrasePolicy::error(m_master->text()).isEmpty())
     {
         return;
     }
@@ -542,9 +545,10 @@ void VaultWindow::unlock()
     }
     if (m_create && !m_recoveryStep)
     {
-        if (m_master->text().size() < 16)
+        const auto policyError = PassphrasePolicy::error(m_master->text());
+        if (!policyError.isEmpty())
         {
-            m_unlockError->setText("Use at least 16 characters, or generate a passphrase.");
+            m_unlockError->setText(policyError);
             updateWindowPresentation();
             return;
         }
@@ -791,7 +795,7 @@ void VaultWindow::closeEvent(QCloseEvent* event)
 }
 void VaultWindow::loadFixture(const QString& directory)
 {
-    QByteArray passphrase("fixture-only-master-passphrase");
+    QByteArray passphrase("Fixture!7Quartz-Cobalt9Maple");
     m_store.create(directory + "/fixture.vault", passphrase);
     QJsonArray entries;
     for (const auto& pair : QList<QPair<QString, QString>>{{"login", "Personal email"}, {"note", "Recovery checklist"}, {"login", "Design workspace"}, {"note", "Ideas for next week"}})

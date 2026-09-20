@@ -45,7 +45,7 @@ void VaultUiTests::automaticLockSavesAndClears()
     QVERIFY(window.windowFlags() & Qt::FramelessWindowHint);
     for (auto* field : {window.m_title, window.m_username, window.m_url, window.m_password, window.m_master, window.m_confirm}) QVERIFY(field->text().isEmpty());
     QVERIFY(window.m_notes->toPlainText().isEmpty());
-    VaultStore reopened; QByteArray passphrase("fixture-only-master-passphrase"); reopened.open(directory.filePath("fixture.vault"), passphrase);
+    VaultStore reopened; QByteArray passphrase("Fixture!7Quartz-Cobalt9Maple"); reopened.open(directory.filePath("fixture.vault"), passphrase);
     QCOMPARE(reopened.entries().first().toObject()["notes"].toString(), QString("Unsaved fictional note before auto lock."));
 }
 void VaultUiTests::windowsLockNotificationClears()
@@ -199,6 +199,7 @@ void VaultUiTests::recoveryExportThroughDialogsAndReopen()
     window.m_path->setText(directory.filePath("generated.vault"));
     window.unlock();
     int stage = 0;
+    QString recoveryPath;
     QTimer automation;
     connect(&automation, &QTimer::timeout, &window, [&]
     {
@@ -215,7 +216,16 @@ void VaultUiTests::recoveryExportThroughDialogsAndReopen()
             if (auto* picker = window.findChild<QFileDialog*>())
             {
                 stage = 2;
-                picker->selectFile(directory.filePath("recovery"));
+                picker->setDirectory(directory.path());
+            }
+        }
+        else if (stage == 2)
+        {
+            if (auto* picker = window.findChild<QFileDialog*>())
+            {
+                stage = 3;
+                picker->selectFile("recovery.txt");
+                recoveryPath = picker->selectedFiles().value(0);
                 QMetaObject::invokeMethod(picker, "accept", Qt::QueuedConnection);
             }
         }
@@ -231,8 +241,9 @@ void VaultUiTests::recoveryExportThroughDialogsAndReopen()
     window.m_exportMaster->click();
     automation.stop();
     timeout.stop();
-    QCOMPARE(stage, 2);
-    QFile recovery(directory.filePath("recovery.txt"));
+    QCOMPARE(stage, 3);
+    QVERIFY(!recoveryPath.isEmpty());
+    QFile recovery(recoveryPath);
     QVERIFY(recovery.open(QIODevice::ReadOnly));
     QVERIFY(recovery.readAll().endsWith(phrase.toUtf8() + "\n"));
     QVERIFY(window.m_recoveryAcknowledged->isChecked());

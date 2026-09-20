@@ -37,7 +37,22 @@ Create a distributable ZIP with CPack:
 cpack --preset windows-release
 ```
 
-The archive is written to `build/windows-release/`. It includes the runtime libraries, platform plugins, documentation, and dependency notices. Build configuration and packaging are defined entirely in CMake.
+The archive is written to `build/windows-release/`. Normal builds are named `UNSIGNED-DEVELOPMENT` so they cannot be mistaken for an official release. It includes the runtime libraries, platform plugins, documentation, and dependency notices. Build configuration and packaging are defined entirely in CMake.
+
+The configure step verifies SHA-256 hashes for the exact Qt 6.10.3 and libsodium 1.0.22 files shipped by Vellum. A missing or altered dependency stops the build. When intentionally updating either dependency, verify the upstream release first and update [the dependency manifest](../cmake/DependencyHashes.cmake) in the same review.
+
+### Signed official release
+
+Official packages require a trusted Authenticode certificate in the Windows certificate store and Windows SDK `signtool` on `PATH`. Configure with the certificate's 40-character SHA-1 thumbprint:
+
+```bat
+cmake --preset windows-release -DVELLUM_OFFICIAL_RELEASE=ON -DVELLUM_SIGN_CERT_SHA1=0123456789ABCDEF0123456789ABCDEF01234567
+cmake --build --preset windows-release
+ctest --preset windows-release
+cpack --preset windows-release
+```
+
+The build signs `Vellum.exe` with SHA-256, applies an RFC 3161 timestamp, and runs Authenticode verification before packaging. Configuration fails when the certificate thumbprint or SignTool is unavailable.
 
 ### Tests
 

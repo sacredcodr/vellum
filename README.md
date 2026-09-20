@@ -23,8 +23,8 @@ Vellum brings notes and login details into one encrypted vault. Search your libr
 
 - **Notes and logins together.** A searchable library with separate views for passwords and notes.
 - **Encrypted storage.** Vault contents and entry metadata are protected with XChaCha20-Poly1305 and an Argon2id-derived key.
-- **Local generation.** Create random passwords or a seven-word master passphrase on your computer.
-- **Backups and recovery.** Save encrypted backups, with an optional master-passphrase export for safekeeping.
+- **Local generation.** Create random passwords or a seven-word master passphrase on your computer. User-supplied phrases must meet Vellum's strength policy.
+- **Backups and recovery.** Save encrypted backups, with an optional account-protected master-passphrase export on NTFS or ReFS.
 - **Desktop controls.** Manual and inactivity locking, masked passwords, clipboard timeout, and keyboard shortcuts in a dark, frameless interface.
 
 ## Getting started
@@ -45,7 +45,7 @@ cmake --install build/windows-release
 
 Open `desktop/Vellum.exe`, choose **Create new**, and follow the passphrase and recovery steps. See the [user guide](docs/USAGE.md) for working with entries and backups.
 
-To package a distributable ZIP, run `cpack --preset windows-release`. Full build, test, and packaging instructions are in [Building Vellum](docs/BUILDING.md).
+To package a development ZIP, run `cpack --preset windows-release`. Development archives are visibly marked unsigned; official releases require Authenticode signing. Full build, test, and packaging instructions are in [Building Vellum](docs/BUILDING.md).
 
 ### Everyday shortcuts
 
