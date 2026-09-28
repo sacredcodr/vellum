@@ -1,5 +1,5 @@
 ﻿cmake_minimum_required(VERSION 3.25)
-project(Vellum VERSION 0.1.0 LANGUAGES CXX)
+project(Vellum VERSION 0.2.0 LANGUAGES CXX)
 option(VELLUM_OFFICIAL_RELEASE "Build a signed official release" OFF)
 set(VELLUM_SIGN_CERT_SHA1 "" CACHE STRING "SHA-1 thumbprint of the Authenticode certificate")
 set(VELLUM_TIMESTAMP_URL "http://timestamp.digicert.com" CACHE STRING "RFC 3161 timestamp service")
