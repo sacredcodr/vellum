@@ -1,6 +1,7 @@
 #include "RecoveryCopy.h"
 #include "PassphrasePolicy.h"
 #include "VaultWindow.h"
+#include "NoteEditor.h"
 #include <QApplication>
 #include <QCheckBox>
 #include <QCloseEvent>
@@ -25,10 +26,10 @@
 #include <QScreen>
 #include <QWindow>
 #include <QStyle>
-#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSettings>
 #include <QShortcut>
+#include <QRegularExpression>
 #include <QSignalBlocker>
 #include <QSplitter>
 #include <QStackedWidget>
@@ -287,8 +288,10 @@ void VaultWindow::buildUi()
     collectionLayout->addLayout(sidebarHeader);
 
     m_search = new QLineEdit;
+    m_search->setObjectName("vaultSearch");
     m_search->setPlaceholderText("Search vault...");
     m_search->setAccessibleName("Search vault");
+    m_search->setToolTip("Search saved titles, usernames, websites and notes.\nAll words must match. Passwords are excluded.\nDown: browse results. Enter: edit result. Escape: clear search.");
     m_search->setClearButtonEnabled(true);
     collectionLayout->addWidget(m_search);
     connect(m_search, &QLineEdit::textChanged, this, &VaultWindow::refreshList);
@@ -328,7 +331,23 @@ void VaultWindow::buildUi()
         filters->addWidget(action);
     }
     collectionLayout->addLayout(filters);
+    m_resultCount = label("", "muted");
+    m_resultCount->setAccessibleName("Search result count");
+    collectionLayout->addWidget(m_resultCount);
+    m_listEmpty = label("", "muted");
+    m_listEmpty->setWordWrap(true);
+    m_listEmpty->hide();
+    collectionLayout->addWidget(m_listEmpty);
+    m_clearSearch = button("Clear search", "quiet");
+    m_clearSearch->hide();
+    connect(m_clearSearch, &QPushButton::clicked, this, [this]
+    {
+        m_search->clear();
+        m_search->setFocus();
+    });
+    collectionLayout->addWidget(m_clearSearch);
     m_list = new QListWidget; m_list->setObjectName("items"); collectionLayout->addWidget(m_list, 1);
+    m_list->setAccessibleName("Vault search results");
     connect(m_list, &QListWidget::currentItemChanged, this, [this](QListWidgetItem* item)
     {
         if (item && !m_loading) selectEntry(item->data(Qt::UserRole).toString());
@@ -371,7 +390,9 @@ void VaultWindow::buildUi()
         try { m_clipboard.copy(m_password->text(), reinterpret_cast<HWND>(winId())); m_status->setText("Password copied. Clears in 20 seconds if the clipboard is unchanged."); }
         catch (const std::exception& error) { showError(QString::fromUtf8(error.what())); }
     }); editorLayout->addWidget(m_loginFields);
-    m_notes = new QPlainTextEdit; m_notes->setPlaceholderText("Write something worth keeping private…"); m_notes->setAccessibleName("Private notes"); m_notes->setUndoRedoEnabled(false); editorLayout->addWidget(m_notes, 1);
+    m_notes = new NoteEditor(m_editor);
+    editorLayout->addWidget(m_notes->createToolbar(m_editor));
+    editorLayout->addWidget(m_notes, 1);
     auto* actions = new QHBoxLayout; actions->addStretch();
     m_save = button("Save changes", "primary"); actions->addWidget(m_save); editorLayout->addLayout(actions);
     connect(m_save, &QPushButton::clicked, this, [this] { saveEntry(); });
@@ -382,7 +403,7 @@ void VaultWindow::buildUi()
     m_pages->addWidget(workspace);
     auto markDirty = [this] { if (!m_loading) { m_dirty = true; m_save->show(); m_save->setEnabled(true); m_save->setText("Save changes"); m_status->setText("Unsaved changes  ·  Ctrl+S to save"); } };
     for (auto* input : {m_title, m_username, m_url, m_password}) connect(input, &QLineEdit::textChanged, this, markDirty);
-    connect(m_notes, &QPlainTextEdit::textChanged, this, markDirty);
+    connect(m_notes, &QTextEdit::textChanged, this, markDirty);
     for (auto* input : {m_title, m_username, m_url, m_password}) input->setContextMenuPolicy(Qt::NoContextMenu);
     m_notes->setContextMenuPolicy(Qt::NoContextMenu);
     clearEditor();
@@ -588,22 +609,78 @@ void VaultWindow::unlock()
 void VaultWindow::refreshList()
 {
     const QSignalBlocker block(m_list); m_list->clear();
-    const auto query = m_search->text();
+    const auto terms = m_search->text().split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+    int collectionCount = 0;
     for (const auto& value : m_store.entries())
     {
         const auto item = value.toObject();
         if (!m_filter.isEmpty() && item["type"] != m_filter) continue;
-        if (!(item["title"].toString() + " " + item["username"].toString()).contains(query, Qt::CaseInsensitive)) continue;
+        ++collectionCount;
+        const QString content = item["title"].toString() + "\n" + item["username"].toString()
+            + "\n" + item["url"].toString() + "\n" + item["notes"].toString();
+        bool matches = true;
+        for (const auto& term : terms)
+        {
+            if (!content.contains(term, Qt::CaseInsensitive))
+            {
+                matches = false;
+                break;
+            }
+        }
+        if (!matches) continue;
         auto* row = new QListWidgetItem(item["title"].toString() + "\n" + (item["type"] == "login" ? "Password" : "Secure note"), m_list);
         row->setData(Qt::UserRole, item["id"].toString()); row->setToolTip(item["title"].toString());
         if (item["id"] == m_selected) m_list->setCurrentItem(row);
     }
+    m_resultCount->setText(QString("%1 of %2 items").arg(m_list->count()).arg(collectionCount));
+    const bool noResults = m_list->count() == 0;
+    m_listEmpty->setVisible(noResults);
+    m_clearSearch->setVisible(noResults && !terms.isEmpty());
+    if (!terms.isEmpty())
+    {
+        m_listEmpty->setText("No matching items. Try fewer words or clear your search.");
+    }
+    else if (m_filter == "login")
+    {
+        m_listEmpty->setText("No passwords yet. Choose New > Password to add one.");
+    }
+    else if (m_filter == "note")
+    {
+        m_listEmpty->setText("No notes yet. Choose New > Secure note to add one.");
+    }
+    else
+    {
+        m_listEmpty->setText("Your library is empty. Choose New to add a password or note.");
+    }
+}
+void VaultWindow::openSearchResult(bool focusEditor)
+{
+    if (!m_store.unlocked() || m_list->count() == 0) return;
+
+    auto* row = focusEditor ? m_list->currentItem() : m_list->item(0);
+    if (!row) row = m_list->item(0);
+    const QString id = row->data(Qt::UserRole).toString();
+    selectEntry(id);
+    // Selection may rebuild the list or open a modal save prompt. Reacquire rows.
+    if (!m_store.unlocked() || m_selected != id) return;
+
+    for (int index = 0; index < m_list->count(); ++index)
+    {
+        if (m_list->item(index)->data(Qt::UserRole).toString() == id)
+        {
+            const QSignalBlocker block(m_list);
+            m_list->setCurrentRow(index);
+            break;
+        }
+    }
+    if (focusEditor) m_title->setFocus();
+    else m_list->setFocus();
 }
 void VaultWindow::clearEditor()
 {
     m_loading = true;
     for (auto* field : {m_title, m_username, m_url, m_password}) field->clear();
-    m_notes->clear(); m_reveal->setChecked(false); m_dirty = false; m_save->setEnabled(false); m_save->hide(); m_editor->setEnabled(false); m_editor->hide(); m_empty->show();
+    m_notes->loadNote({}, {}); m_reveal->setChecked(false); m_dirty = false; m_save->setEnabled(false); m_save->hide(); m_editor->setEnabled(false); m_editor->hide(); m_empty->show();
     m_recordType->setText("Your library");
     findChild<QPushButton*>("itemActions")->setEnabled(false);
     m_status->setText("Select an item, or create a password or note.");
@@ -631,7 +708,7 @@ void VaultWindow::selectEntry(const QString& id)
         clearEditor(); m_loading = true; m_selected = id;
         m_recordType->setText(item["type"] == "login" ? "Password" : "Secure note");
         m_title->setText(item["title"].toString()); m_username->setText(item["username"].toString()); m_url->setText(item["url"].toString());
-        m_password->setText(item["password"].toString()); m_notes->setPlainText(item["notes"].toString());
+        m_password->setText(item["password"].toString()); m_notes->loadNote(item["notes"].toString(), item["notesHtml"].toString());
         m_loginFields->setVisible(item["type"] == "login"); m_editor->setEnabled(true); m_editor->show(); m_empty->hide(); findChild<QPushButton*>("itemActions")->setEnabled(true); m_status->setText("Saved locally · encrypted at rest"); m_loading = false;
         return;
     }
@@ -656,11 +733,13 @@ bool VaultWindow::saveEntry()
     if (!m_dirty) return true;
     if (m_title->text().trimmed().isEmpty()) { showError("Give this item a title before saving."); return false; }
     if (m_notes->toPlainText().size() > 1024 * 1024) { showError("Notes are limited to one million characters."); return false; }
+    const QString notesHtml = m_notes->toHtml();
+    if (notesHtml.size() > 2 * 1024 * 1024) { showError("Note formatting is too large. Simplify it before saving."); return false; }
     auto entries = m_store.entries();
     for (qsizetype i = 0; i < entries.size(); ++i)
     {
         auto item = entries[i].toObject(); if (item["id"] != m_selected) continue;
-        item["title"] = m_title->text(); item["username"] = m_username->text(); item["url"] = m_url->text(); item["password"] = m_password->text(); item["notes"] = m_notes->toPlainText(); item["updated"] = QDateTime::currentDateTimeUtc().toString(Qt::ISODate); entries[i] = item;
+        item["title"] = m_title->text(); item["username"] = m_username->text(); item["url"] = m_url->text(); item["password"] = m_password->text(); item["notes"] = m_notes->toPlainText(); item["notesHtml"] = notesHtml; item["updated"] = QDateTime::currentDateTimeUtc().toString(Qt::ISODate); entries[i] = item;
         try { m_store.save(entries); m_dirty = false; m_save->setEnabled(false); m_save->hide(); m_status->setText("Saved locally · encrypted at rest"); refreshList(); return true; }
         catch (const std::exception& error) { showError(QString::fromUtf8(error.what())); return false; }
     }
@@ -701,6 +780,7 @@ void VaultWindow::lockVault(bool automatic)
     if (!automatic && !resolveDraft()) return;
     const bool failedSave = automatic && m_dirty && !saveEntry();
     m_clipboard.clear(); m_selected.clear(); clearEditor(); m_store.lock(); m_list->clear(); m_search->clear();
+    m_resultCount->clear(); m_listEmpty->clear(); m_listEmpty->hide(); m_clearSearch->hide();
     m_status->clear(); m_recordType->setText("Your library");
     m_master->clear(); m_confirm->clear(); m_confirm->hide(); m_creationActions->hide(); m_masterReveal->setChecked(false); m_create = false;
     showSetupStep(false);
@@ -737,6 +817,27 @@ bool VaultWindow::eventFilter(QObject* watched, QEvent* event)
     if ((m_store.unlocked() || m_create) && event->type() == QEvent::KeyPress)
     {
         const auto* key = static_cast<QKeyEvent*>(event);
+        if (m_store.unlocked() && key->modifiers() == Qt::NoModifier)
+        {
+            if (watched == m_search)
+            {
+                if (key->key() == Qt::Key_Escape)
+                {
+                    m_search->clear();
+                    return true;
+                }
+                if (key->key() == Qt::Key_Down || key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter)
+                {
+                    openSearchResult(key->key() != Qt::Key_Down);
+                    return true;
+                }
+            }
+            if (watched == m_list && (key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter))
+            {
+                openSearchResult(true);
+                return true;
+            }
+        }
         const bool copying = key->matches(QKeySequence::Copy);
         const bool cutting = key->matches(QKeySequence::Cut);
         const bool secretField = watched == m_master || watched == m_confirm || watched == m_title || watched == m_username || watched == m_url || watched == m_password || watched == m_notes;

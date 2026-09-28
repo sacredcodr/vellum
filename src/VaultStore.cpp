@@ -89,6 +89,10 @@ void VaultStore::validate(const QJsonArray& entries)
             if (!entry[field].isString() || entry[field].toString().size() > 1024 * 1024) fail("Invalid entry field.");
         }
         if (entry["title"].toString().size() > 512 || entry["id"].toString().size() > 64) fail("Entry metadata is too long.");
+        if (entry.contains("notesHtml") && (!entry["notesHtml"].isString() || entry["notesHtml"].toString().size() > 2 * 1024 * 1024))
+        {
+            fail("Invalid or oversized note formatting.");
+        }
     }
 }
 QByteArray VaultStore::encrypt(const QJsonArray& entries) const

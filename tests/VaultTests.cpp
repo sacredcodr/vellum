@@ -16,6 +16,7 @@ class VaultTests : public QObject
     Q_OBJECT
 private slots:
     void encryptedRoundTripAndBackup();
+    void formattedNotesRoundTripAndValidation();
     void rejectsTamperingAndWrongKeys();
     void preservesOriginalAndRejectsConcurrentWriters();
     void randomPasswords();
@@ -48,6 +49,36 @@ void VaultTests::encryptedRoundTripAndBackup()
     store.lock(); QVERIFY(!store.unlocked()); QVERIFY(store.entries().isEmpty());
     password = passphrase(); store.open(directory.filePath("backup.vault"), password);
     QCOMPARE(store.entries(), sample()); QVERIFY(password.isEmpty());
+}
+void VaultTests::formattedNotesRoundTripAndValidation()
+{
+    QTemporaryDir directory;
+    const auto path = directory.filePath("formatted.vault");
+    VaultStore store;
+    auto password = passphrase();
+    store.create(path, password);
+    auto entries = sample();
+    auto entry = entries.first().toObject();
+    entry["notesHtml"] = "<p><b>PRIVATE-NOTE-marker</b></p>";
+    entries[0] = entry;
+    store.save(entries);
+    const auto original = read(path);
+    QVERIFY(!original.contains("PRIVATE-NOTE-marker"));
+    QVERIFY(!original.contains("notesHtml"));
+    for (const auto& invalid : {QJsonValue(42), QJsonValue(QString(2 * 1024 * 1024 + 1, 'x'))})
+    {
+        entry["notesHtml"] = invalid;
+        auto changed = entries;
+        changed[0] = entry;
+        QVERIFY_EXCEPTION_THROWN(store.save(changed), std::runtime_error);
+        QCOMPARE(read(path), original);
+    }
+    const auto backup = directory.filePath("formatted-backup.vault");
+    store.backup(backup);
+    store.lock();
+    password = passphrase();
+    store.open(backup, password);
+    QCOMPARE(store.entries(), entries);
 }
 void VaultTests::rejectsTamperingAndWrongKeys()
 {

@@ -1,4 +1,5 @@
 #include "VaultWindow.h"
+#include "NoteEditor.h"
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDir>
@@ -12,6 +13,12 @@
 #include <QListWidget>
 #include <QPushButton>
 #include <QFileDialog>
+#include <QLineEdit>
+#include <QKeyEvent>
+#include <QComboBox>
+#include <QAbstractItemView>
+#include <QMenu>
+#include <QSplitter>
 
 int main(int argc, char* argv[])
 {
@@ -56,12 +63,26 @@ QPushButton#primary:hover, QPushButton#unlockButton:hover { background:#f4f2ec; 
 QPushButton#danger { color:#e2a39b; background:transparent; border-color:transparent; }
 QPushButton#navButton { background:transparent; border-color:transparent; padding:7px 9px; color:#a5a5a5; }
 QPushButton#navButton:checked { background:#303030; color:#eeeeee; border-color:#444444; }
-QLineEdit, QPlainTextEdit { background:#252525; border:1px solid #383838; border-radius:7px; padding:10px; selection-background-color:#514465; }
-QLineEdit:focus, QPlainTextEdit:focus { border-color:#b5b5b5; }
+QLineEdit, QTextEdit { background:#252525; border:1px solid #383838; border-radius:7px; padding:10px; selection-background-color:#514465; }
+QLineEdit:focus, QTextEdit:focus { border-color:#b5b5b5; }
 QLineEdit#titleEdit { font-size:26px; font-weight:600; background:transparent; border:1px solid transparent; padding:8px 0; }
 QLineEdit#titleEdit:focus { border-bottom-color:#b5b5b5; }
-QPlainTextEdit { font-size:15px; background:transparent; border:1px solid transparent; padding:14px 0; }
-QPlainTextEdit:focus { border-color:transparent; }
+QTextEdit { font-size:15px; background:transparent; border:1px solid transparent; padding:14px 0; }
+QTextEdit:focus { border-color:transparent; }
+QFrame#noteToolbar { background:#282828; border:1px solid #3c3c3c; border-radius:8px; }
+QFrame#formatSeparator { background:#424242; border:0; }
+QToolButton { background:transparent; border:1px solid transparent; border-radius:5px; padding:0; }
+QToolButton:hover { background:#3a3a3a; border-color:#494949; }
+QToolButton:checked { background:#514465; border-color:#79678f; }
+QToolButton:focus { border-color:#c5b3ef; }
+QToolButton::menu-indicator { subcontrol-origin:padding; subcontrol-position:right center; right:1px; }
+QComboBox#noteParagraph { background:transparent; border:1px solid transparent; border-radius:5px; padding:0 20px 0 8px; }
+QComboBox#noteParagraph:hover { background:#3a3a3a; }
+QComboBox#noteParagraph:focus { border-color:#c5b3ef; }
+QComboBox#noteParagraph::drop-down { border:0; width:20px; }
+QComboBox#noteParagraph::down-arrow { width:0; height:0; }
+QComboBox#noteParagraph QAbstractItemView { background:#292929; border:1px solid #454545; padding:4px; selection-background-color:#514465; outline:0; }
+QComboBox#noteParagraph QAbstractItemView::item { min-height:32px; padding-left:8px; }
 QPushButton#itemActions, QPushButton#quiet, QPushButton#brandButton { background:transparent; border-color:transparent; color:#b8b8b8; padding:7px 9px; }
 QPushButton#brandButton { font-size:16px; font-weight:600; color:#eeeeee; padding-left:4px; padding-right:18px; }
 QPushButton#quiet:hover, QPushButton#brandButton:hover { background:#303030; }
@@ -119,6 +140,38 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height:0; }
                     app.processEvents(); window.grab().save(directory + "/note.png");
                     window.findChild<QPushButton*>("navButton")->click();
                     app.processEvents(); window.grab().save(directory + "/empty.png");
+                    auto* search = window.findChild<QLineEdit*>("vaultSearch");
+                    search->setText("backup personal");
+                    app.processEvents(); window.grab().save(directory + "/search-results.png");
+                    search->setText("no-matching-fixture");
+                    app.processEvents(); window.grab().save(directory + "/search-empty.png");
+                    search->setText("recovery");
+                    search->setFocus();
+                    QKeyEvent openResult(QEvent::KeyPress, Qt::Key_Return, Qt::NoModifier);
+                    QApplication::sendEvent(search, &openResult);
+                    app.processEvents(); window.grab().save(directory + "/search-keyboard.png");
+                    search->clear();
+                    auto* note = window.findChild<NoteEditor*>("noteEditor");
+                    note->setHtml("<h1>A little space to think</h1><p>Collect the <b>important details</b>, then make room for <i>new ideas</i>.</p><h2>This week</h2><ul><li>Sketch the first draft</li><li>Keep useful references together</li><li><span style='color:#92d5b5'>Make time to review</span></li></ul><p><u>One thought to keep:</u> a good note makes the next step easier.</p>");
+                    window.resize(1240, 820);
+                    app.processEvents(); window.grab().save(directory + "/formatted-note.png");
+                    window.resize(1000, 700);
+                    note->setFocus();
+                    auto selection = note->textCursor();
+                    selection.setPosition(27);
+                    selection.setPosition(53, QTextCursor::KeepAnchor);
+                    note->setTextCursor(selection);
+                    app.processEvents(); window.grab().save(directory + "/formatted-note-compact.png");
+                    auto* paragraph = window.findChild<QComboBox*>("noteParagraph");
+                    paragraph->showPopup();
+                    app.processEvents(); paragraph->view()->window()->grab().save(directory + "/paragraph-menu.png");
+                    paragraph->hidePopup();
+                    auto* colors = window.findChild<QMenu*>("noteColors");
+                    colors->popup(window.mapToGlobal(QPoint(600, 240)));
+                    app.processEvents(); colors->grab().save(directory + "/color-menu.png");
+                    colors->hide();
+                    window.findChild<QSplitter*>()->setSizes({510, 490});
+                    app.processEvents(); window.grab().save(directory + "/formatted-note-narrow-editor.png");
                     window.lockVault(true);
                     app.processEvents(); window.grab().save(directory + "/relocked.png");
                     window.loadCreationFixture();

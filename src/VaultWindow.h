@@ -6,7 +6,7 @@
 #include <QTimer>
 class QStackedWidget;
 class QLineEdit;
-class QPlainTextEdit;
+class NoteEditor;
 class QListWidget;
 class QLabel;
 class QPushButton;
@@ -34,6 +34,7 @@ private:
     void showSetupStep(bool recovery);
     void exportRecoveryCopy();
     void refreshList();
+    void openSearchResult(bool focusEditor);
     void selectEntry(const QString& id);
     void newEntry(const QString& type);
     bool saveEntry();
@@ -70,12 +71,15 @@ private:
     QLabel* m_recordType = nullptr;
     QLabel* m_empty = nullptr;
     QLineEdit* m_search = nullptr;
+    QLabel* m_resultCount = nullptr;
+    QLabel* m_listEmpty = nullptr;
+    QPushButton* m_clearSearch = nullptr;
     QListWidget* m_list = nullptr;
     QLineEdit* m_title = nullptr;
     QLineEdit* m_username = nullptr;
     QLineEdit* m_url = nullptr;
     QLineEdit* m_password = nullptr;
-    QPlainTextEdit* m_notes = nullptr;
+    NoteEditor* m_notes = nullptr;
     QCheckBox* m_reveal = nullptr;
     QPushButton* m_save = nullptr;
     QWidget* m_loginFields = nullptr;
